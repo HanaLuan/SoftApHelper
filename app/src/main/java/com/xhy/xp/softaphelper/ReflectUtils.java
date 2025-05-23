@@ -1,5 +1,8 @@
 package com.xhy.xp.softaphelper;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -23,4 +26,5 @@ public class ReflectUtils {
         }
         return null;
     }
+
 }

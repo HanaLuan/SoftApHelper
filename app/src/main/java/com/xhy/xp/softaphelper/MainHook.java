@@ -2,6 +2,7 @@ package com.xhy.xp.softaphelper;
 
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 
+import android.content.Context;
 import android.net.IpPrefix;
 import android.net.LinkAddress;
 import android.net.MacAddress;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.noblelulu.andoid.softaphelper.util.MMKVManager;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
@@ -41,8 +44,6 @@ public class MainHook implements IXposedHookLoadPackage {
 
     private static final String callerMethodName_Q = "configureIPv4";
 
-    private static final String WIFI_HOST_IFACE_ADDR = "192.168.43.1";
-
     // TetheringType
     public static final int TETHERING_INVALID = -1;
     public static final int TETHERING_WIFI = 0;
@@ -53,17 +54,64 @@ public class MainHook implements IXposedHookLoadPackage {
     public static final int TETHERING_ETHERNET = 5;
     public static final int TETHERING_WIGIG = 6;
 
-    private static final String WIFI_HOST_IFACE_ADDRESS = WIFI_HOST_IFACE_ADDR + "/24";
-    private static final String USB_HOST_IFACE_ADDRESS = "192.168.42.1/24";
-    private static final String BT_HOST_IFACE_ADDRESS = "192.168.44.1/24";
-    private static final String P2P_HOST_IFACE_ADDRESS = "192.168.49.1/24";
-    private static final String ETHERNET_HOST_IFACE_ADDRESS = "192.168.45.1/24";
+    private static Context getAppContext() {
+        try {
+            Class<?> activityThread = Class.forName("android.app.ActivityThread");
+            Object at = activityThread.getMethod("currentApplication").invoke(null);
+            return (Context) at;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
-    // staticBSSID Switch
-    private static final boolean shouldStaticBSSID = false;
+    private static String getMMKVString(String key, String def) {
+        Context ctx = getAppContext();
+        if (ctx == null) return def;
+        String readableInfo = "";
+        try {
+            readableInfo = "packageName=" + ctx.getPackageName();
+        } catch (Exception e) {
+            readableInfo = "packageName=unknown";
+        }
+        XposedBridge.log("[" + TAG + "] [Info]: [getMMKVString] Context Info: " + readableInfo);
+        return MMKVManager.INSTANCE.getString(ctx, key, def);
+    }
+
+    private static boolean getMMKVBoolean(String key, boolean def) {
+        Context ctx = getAppContext();
+        if (ctx == null) return def;
+        return MMKVManager.INSTANCE.getBoolean(ctx, key, def);
+    }
+
+    private static String WIFI_HOST_IFACE_ADDR() {
+        return getMMKVString("wifi_ip", "192.168.43.1");
+    }
+    private static String WIFI_HOST_IFACE_ADDRESS() {
+        return WIFI_HOST_IFACE_ADDR() + "/24";
+    }
+    private static String USB_HOST_IFACE_ADDRESS() {
+        return getMMKVString("usb_ip", "192.168.42.1/24");
+    }
+    private static String BT_HOST_IFACE_ADDRESS() {
+        return getMMKVString("bt_ip", "192.168.44.1/24");
+    }
+    private static String P2P_HOST_IFACE_ADDRESS() {
+        return getMMKVString("p2p_ip", "192.168.49.1/24");
+    }
+    private static String ETHERNET_HOST_IFACE_ADDRESS() {
+        return getMMKVString("eth_ip", "192.168.45.1/24");
+    }
+    private static boolean shouldStaticBSSID() {
+        return getMMKVBoolean("static_bssid", false);
+    }
+    private static String getStaticBSSID() {
+        return getMMKVString("bssid", "aa:bb:cc:dd:ee:ff");
+    }
+    private static boolean enable5GBandLock() {
+        return getMMKVBoolean("enable_5g_lock", true);
+    }
 
     private static HashMap<Integer, String> AddressMap = new HashMap<>();
-
 
     public static final int BAND_5GHZ = 1 << 1;
     public static final int CHANNEL_WIDTH_320MHZ = 11;
@@ -74,18 +122,18 @@ public class MainHook implements IXposedHookLoadPackage {
 //    private static HashSet<Integer> AvailableChannelFreqSet = new HashSet<>(Arrays.asList(5745, 5765, 5785, 5805, 5825));
 
     static {
-        AddressMap.put(TETHERING_WIFI, WIFI_HOST_IFACE_ADDRESS);
-        AddressMap.put(TETHERING_USB, USB_HOST_IFACE_ADDRESS);
-        AddressMap.put(TETHERING_BLUETOOTH, BT_HOST_IFACE_ADDRESS);
-        AddressMap.put(TETHERING_WIFI_P2P, P2P_HOST_IFACE_ADDRESS);
-        AddressMap.put(TETHERING_ETHERNET, ETHERNET_HOST_IFACE_ADDRESS);
+        AddressMap.put(TETHERING_WIFI, WIFI_HOST_IFACE_ADDRESS());
+        AddressMap.put(TETHERING_USB, USB_HOST_IFACE_ADDRESS());
+        AddressMap.put(TETHERING_BLUETOOTH, BT_HOST_IFACE_ADDRESS());
+        AddressMap.put(TETHERING_WIFI_P2P, P2P_HOST_IFACE_ADDRESS());
+        AddressMap.put(TETHERING_ETHERNET, ETHERNET_HOST_IFACE_ADDRESS());
     }
 
     private boolean isConflictPrefix(Class<?> klass, Object thiz, IpPrefix prefix) throws Exception {
         Field field_mPrivateAddressCoordinator = ReflectUtils.findField(klass, "mPrivateAddressCoordinator");
         // Android 15+, bypass
         if(field_mPrivateAddressCoordinator == null){
-            XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR + "] field_mPrivateAddressCoordinator not found.");
+            XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR() + "] field_mPrivateAddressCoordinator not found.");
             return false;
         }
         Object mPrivateAddressCoordinator = field_mPrivateAddressCoordinator.get(thiz);
@@ -129,7 +177,7 @@ public class MainHook implements IXposedHookLoadPackage {
                     new XC_MethodReplacement() {
                         @Override
                         protected Object replaceHookedMethod(MethodHookParam param) {
-                            return WIFI_HOST_IFACE_ADDR;
+                            return WIFI_HOST_IFACE_ADDR();
                         }
                     });
         }
@@ -160,7 +208,7 @@ public class MainHook implements IXposedHookLoadPackage {
                                 int mInterfaceType = 0;
                                 if(field_mInterfaceType == null){
                                     // avoid exception
-                                    XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR + "] field_mInterfaceType not found.");
+                                    XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR() + "] field_mInterfaceType not found.");
                                 }else{
                                     mInterfaceType = field_mInterfaceType.getInt(param.thisObject);
                                 }
@@ -172,7 +220,7 @@ public class MainHook implements IXposedHookLoadPackage {
 
                                 if (address != null && StackUtils.isCallingFrom(className, callerMethodName_Q)) {
                                     if (isConflictPrefix(klass, param.thisObject, prefix)) {
-                                        XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR + "] isConflictPrefix! do not replace.");
+                                        XposedBridge.log("[" + TAG + "] [Warning]: [" + WIFI_HOST_IFACE_ADDR() + "] isConflictPrefix! do not replace.");
                                     } else {
                                         XposedBridge.log("[" + TAG + "] [Success Edit]:" + address);
                                         param.setResult(mLinkAddress);
@@ -206,30 +254,21 @@ public class MainHook implements IXposedHookLoadPackage {
                                     super.beforeHookedMethod(param);
 
                                     // staticBSSID
-                                    if(shouldStaticBSSID) {
-                                        param.args[1] = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
+                                    if(shouldStaticBSSID()) {
+                                        param.args[1] = MacAddress.fromString(getStaticBSSID());
                                     }
 
-                                    SparseIntArray channels = (SparseIntArray) param.args[4];
-                                    int channel5gIndex = channels.indexOfKey(BAND_5GHZ);
-
-                                    Set<Integer> allowedAcsChannels5g = (Set<Integer>) param.args[21];
-//                                    int maxChannelBandwidth = (int) param.args[23];
-//                                    XposedBridge.log("["+TAG+"] orig channel5gIndex " + channel5gIndex);
-//                                    XposedBridge.log("["+TAG+"] orig channels " + channels);
-//                                    XposedBridge.log("["+TAG+"] orig allowedAcsChannels5g " + allowedAcsChannels5g);
-//                                    XposedBridge.log("["+TAG+"] orig maxChannelBandwidth " + maxChannelBandwidth);
-
-                                    // config has set 5G channel
-                                    if (channel5gIndex >= 0) {
-                                        int channel = channels.get(BAND_5GHZ);
-
-                                        // 5GHz + allowedAcsChannels5g.size == 0
-                                        if (channel == 0 && allowedAcsChannels5g.size() == 0) {
-                                            // 5G ACS channels
-                                            param.args[21] = AvailableChannelSet_HIGH;
-                                            // max bandwidth
-                                            param.args[23] = CHANNEL_WIDTH_320MHZ;
+                                    // 5G频段锁
+                                    if (enable5GBandLock()) {
+                                        SparseIntArray channels = (SparseIntArray) param.args[4];
+                                        int channel5gIndex = channels.indexOfKey(BAND_5GHZ);
+                                        Set<Integer> allowedAcsChannels5g = (Set<Integer>) param.args[21];
+                                        if (channel5gIndex >= 0) {
+                                            int channel = channels.get(BAND_5GHZ);
+                                            if (channel == 0 && allowedAcsChannels5g.size() == 0) {
+                                                param.args[21] = AvailableChannelSet_HIGH;
+                                                param.args[23] = CHANNEL_WIDTH_320MHZ;
+                                            }
                                         }
                                     }
                                 }

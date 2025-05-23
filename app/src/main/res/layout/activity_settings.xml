@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAFAFA">
+
+    <LinearLayout
+        android:id="@+id/settings_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <Switch
+            android:id="@+id/switch_5g_lock"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="启用5G频段锁" />
+
+        <EditText
+            android:id="@+id/edit_wifi_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="WiFi热点IP (如192.168.43.1)"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edit_usb_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="USB热点IP (如192.168.42.1/24)"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edit_bt_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="蓝牙热点IP (如192.168.44.1/24)"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edit_p2p_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="P2P热点IP (如192.168.49.1/24)"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edit_eth_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="以太网热点IP (如192.168.45.1/24)"
+            android:inputType="text" />
+
+        <Switch
+            android:id="@+id/switch_static_bssid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="启用静态BSSID" />
+
+        <EditText
+            android:id="@+id/edit_bssid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="BSSID (如aa:bb:cc:dd:ee:ff)"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存" />
+
+    </LinearLayout>
+</ScrollView>

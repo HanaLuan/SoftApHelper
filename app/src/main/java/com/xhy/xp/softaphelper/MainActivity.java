@@ -2,8 +2,10 @@ package com.xhy.xp.softaphelper;
 
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -23,21 +25,26 @@ public class MainActivity extends Activity {
                         "com.google.android.networkstack.tethering"
                 ));
 
-        StringBuilder sb = new StringBuilder("Installed App (if not found, select android):\n");
+        StringBuilder sb = new StringBuilder("已安装的Tethering组件（如未找到请选择android）：\n\n");
         for (String pkgName : pkgNameList) {
             if (isInstalled(pkgName)) {
-                sb.append(pkgName);
+                sb.append("✔ ").append(pkgName).append("\n");
+            } else {
+                sb.append("✘ ").append(pkgName).append("\n");
             }
         }
 
+        sb.append("\n");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S_V2){
-            sb.append("5G channel and bandwidth lock enabled!");
+            sb.append("✅ 5G信道与带宽锁定已启用！\n");
         }else{
-            sb.append("Tips: 5G channel and bandwidth lock for Android 13+ only");
+            sb.append("⚠️ 仅Android 13+支持5G信道与带宽锁定\n");
         }
 
         TextView textView = findViewById(R.id.sample_text);
         textView.setText(sb.toString());
+        textView.setMovementMethod(new ScrollingMovementMethod());
+        textView.setTypeface(null, Typeface.BOLD);
     }
 
     public boolean isInstalled(String pkgName) {

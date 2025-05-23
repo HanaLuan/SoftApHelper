@@ -3,6 +3,7 @@ import java.io.InputStreamReader
 
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -31,10 +32,15 @@ android {
     }
 
     namespace = "com.xhy.xp.softaphelper"
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.16.0")
     compileOnly(files("libs/api-82.jar"))
+    implementation("com.tencent:mmkv:1.3.14")
 }
 
 fun getGitCommitHash(): String {
